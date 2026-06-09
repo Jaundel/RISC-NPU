@@ -80,7 +80,7 @@ ARCHITECTURE description OF cpu1 IS
         ADDR_OUT : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
         DATA_IN  : IN  STD_LOGIC_VECTOR(31 DOWNTO 0);
         DATA_BUS, MEM_OUT, MEM_IN : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
-        MEM_ADDR : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+        MEM_ADDR : OUT unsigned(7 DOWNTO 0);
         DATA_Mux : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
         REG_Mux  : IN STD_LOGIC;
         A_MUX, B_MUX : IN STD_LOGIC;
@@ -262,6 +262,7 @@ BEGIN
     dOutC  <= out0;
     dOutZ  <= out1;
     dOutIR <= outIR;
+    wEn    <= memWEN;
     wen_mem <= out7;
     en_mem  <= out6;
 

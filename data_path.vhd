@@ -212,6 +212,8 @@ begin
     DATA_BUS <= data_bus_s;
     OUT_A    <= reg_A_out;
     OUT_B    <= reg_B_out;
+    OUT_C    <= carry_flag;
+    OUT_Z    <= zero_flag;
     OUT_IR   <= IR_OUT;
     ADDR_OUT <= out_pc_sig;
     OUT_PC   <= out_pc_sig;

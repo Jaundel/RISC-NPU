@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
 
 entity data_mem is
 port(
@@ -24,10 +25,10 @@ begin
                 data_out <= (others => '0');
             else
                 if (wen = '0') then
-                    data_out <= DATAMEM(to_integer(addr));
+                    data_out <= DATAMEM(conv_integer(addr));
                 end if;
                 if (wen = '1') then
-                    DATAMEM(to_integer(addr)) <= data_in;
+                    DATAMEM(conv_integer(addr)) <= data_in;
                     data_out <= (others => '0');
                 end if;
             end if;

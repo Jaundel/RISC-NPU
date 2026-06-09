@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
+use ieee.std_logic_arith.all;
+use ieee.std_logic_unsigned.all;
 
 entity RED is
 port(
@@ -11,5 +12,5 @@ end entity;
 
 architecture Behavior of RED is
 begin
-    RED_out <= unsigned (RED_in(7 downto 0));
+    RED_out <= unsigned(RED_in(7 downto 0));
 end Behavior;
