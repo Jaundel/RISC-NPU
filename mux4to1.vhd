@@ -13,5 +13,5 @@ begin
         f <= X1 when "00",
              X2 when "01",
              X3 when "10",
-             X4 when "11";
+             X4 when others;
 end Behavior;

@@ -16,18 +16,21 @@
 -- TIMING (one MAC operation):
 --   T0          : CPU at state_1, decodes MAC opcode, asserts npu_start='1'
 --   T1..T1+N    : Multiplier runs (iterative shift-add, ~8 cycles)
---   T1+N        : mul_done='1', accumulator latches product
---   T1+N+1      : npu_done='1', result valid on npu_result
---   T1+N+1      : Control sees npu_done, sets DATA_MUX="11", ld_A='1'
---   T1+N+2      : CPU back to state_0, register A holds NPU result
+--   T1+N        : mul_done='1', acc_en is requested
+--   T1+N+1      : accumulator latches product
+--   T1+N+2      : npu_done='1', result valid on npu_result
+--   T1+N+2      : Control sees npu_done, sets DATA_MUX="11", ld_A='1'
+--   T1+N+3      : CPU back to state_0, register A holds NPU result
 --
--- TODO LIST (implement in order):
---   1. Implement multiplier.vhd  (iterative signed 8×8 shift-add)
---   2. Implement accumulator.vhd (16-bit saturating, sat_flag, neg_flag)
---   3. Implement relu.vhd        (combinational, dout = max(0, din))
---   4. Update component port maps below to match your implementations
---   5. Implement the NPU state machine process
---   6. Wire npu_result sign extension correctly
+-- CHECKPOINT 1 STATUS:
+--   1. multiplier.vhd implemented  (iterative signed 8×8 shift-add)
+--   2. accumulator.vhd implemented (16-bit saturating, sat_flag, neg_flag)
+--   3. relu.vhd implemented        (combinational, dout = max(0, din))
+--   4. NPU state machine implemented with start/done handshake
+--   5. npu_result sign extension wired
+--
+-- TODO:
+--   Decide whether MAC returns acc_out directly or relu_out by default.
 -- ============================================================
 
 library ieee;
@@ -66,12 +69,10 @@ architecture Behavior of npu_core is
 
     -- ===========================================================
     -- Component Declarations
-    -- TODO: After implementing each component, verify that the
-    --       port names here match the entity declarations exactly.
+    -- Port names match the leaf entity declarations.
     -- ===========================================================
 
     component multiplier is
-        -- TODO(multiplier): update port names to match your implementation
         port(
             clk    : in  std_logic;
             rst    : in  std_logic;
@@ -84,7 +85,6 @@ architecture Behavior of npu_core is
     end component;
 
     component accumulator is
-        -- TODO(accumulator): update port names to match your implementation
         port(
             clk      : in  std_logic;
             rst      : in  std_logic;
@@ -97,7 +97,6 @@ architecture Behavior of npu_core is
     end component;
 
     component relu is
-        -- TODO(relu): update port names to match your implementation
         port(
             din  : in  std_logic_vector(15 downto 0);
             dout : out std_logic_vector(15 downto 0)
@@ -129,13 +128,13 @@ architecture Behavior of npu_core is
     -- NPU Internal State Machine
     -- Controls sequencing of multiply → accumulate → output
     --
-    -- TODO(state_machine): implement transitions below
     --   NPU_IDLE     → npu_start='1'  → NPU_MUL_WAIT
     --   NPU_MUL_WAIT → mul_done='1'   → NPU_ACC
-    --   NPU_ACC      → (1 cycle)      → NPU_DONE
-    --   NPU_DONE     → (1 cycle)      → NPU_IDLE
+    --   NPU_ACC      → (1 cycle)      → NPU_CAPTURE
+    --   NPU_CAPTURE  → (1 cycle)      → NPU_DONE_STATE
+    --   NPU_DONE_STATE → (1 cycle)    → NPU_IDLE
     -- ===========================================================
-    type npu_state_t is (NPU_IDLE, NPU_MUL_WAIT, NPU_ACC, NPU_DONE);
+    type npu_state_t is (NPU_IDLE, NPU_MUL_WAIT, NPU_ACC, NPU_CAPTURE, NPU_DONE_STATE);
     signal npu_state : npu_state_t;
 
 begin
@@ -181,7 +180,6 @@ begin
 
     -- ===========================================================
     -- NPU State Machine
-    -- TODO: implement this process — stubs provided below
     -- ===========================================================
     process(clk, rst)
     begin
@@ -221,21 +219,27 @@ begin
                     end if;
 
                 -- -------------------------------------------------
-                -- ACC: accumulator latched, capture result
+                -- ACC: accumulator latches product on this clock
                 -- TODO: decide here whether to use acc_out or relu_out
                 --       For MAC opcode: store acc_out (pre-ReLU)
                 --       For RELU opcode: store relu_out (post-ReLU)
                 --       Current default: stores relu_out
                 -- -------------------------------------------------
                 when NPU_ACC =>
+                    npu_state  <= NPU_CAPTURE;
+
+                -- -------------------------------------------------
+                -- CAPTURE: accumulator output is now stable
+                -- -------------------------------------------------
+                when NPU_CAPTURE =>
                     result_reg <= relu_out;        -- TODO: switch to acc_out if needed
                     npu_done   <= '1';
-                    npu_state  <= NPU_DONE;
+                    npu_state  <= NPU_DONE_STATE;
 
                 -- -------------------------------------------------
                 -- DONE: result valid for 1 cycle, then back to IDLE
                 -- -------------------------------------------------
-                when NPU_DONE =>
+                when NPU_DONE_STATE =>
                     npu_state <= NPU_IDLE;
 
                 when others =>

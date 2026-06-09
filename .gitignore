@@ -3,6 +3,12 @@ db/
 incremental_db/
 output_files/
 simulation/
+work/
+qrun.out/
+transcript
+qrun.log
+vsim.wlf
+*.wlf
 
 # Quartus reports, logs, and temporary outputs
 *.bak
