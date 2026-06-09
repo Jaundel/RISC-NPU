@@ -1,0 +1,1 @@
+-- TODO(accumulator): 16-bit saturating accumulator driving q, sat_flag, and neg_flag.

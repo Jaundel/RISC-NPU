@@ -1,0 +1,8 @@
+* text=auto
+
+*.md text eol=lf
+*.mif text eol=lf
+*.qip text eol=lf
+*.qpf text eol=lf
+*.qsf text eol=lf
+*.vhd text eol=lf

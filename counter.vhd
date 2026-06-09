@@ -1,0 +1,1 @@
+-- TODO(counter): count cycles between start and done pulses, expose cycles_last and busy.

@@ -1,0 +1,30 @@
+# Quartus generated project data
+db/
+incremental_db/
+output_files/
+simulation/
+
+# Quartus reports, logs, and temporary outputs
+*.bak
+*.done
+*.eqn
+*.fit.*
+*.flow.rpt
+*.jdi
+*.map.*
+*.pin
+*.pof
+*.qws
+*.rpt
+*.sld
+*.smsg
+*.sof
+*.sta.*
+*.summary
+*.tan.*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp

@@ -1,0 +1,1 @@
+-- TODO(weights_bias): define default signed weights (W1/W2) and bias constants for the neuron.
