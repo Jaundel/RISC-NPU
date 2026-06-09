@@ -49,12 +49,6 @@ entity data_path is
         IM_MUX2      : in std_logic_vector(1 downto 0);
         ALU_Op       : in std_logic_vector(2 downto 0);
 
-        -- -------------------------------------------------------
-        -- TODO(npu_result): This port receives the 32-bit NPU
-        -- result from npu_core.vhd (via cpu1.vhd).
-        -- When DATA_MUX = "11", this value appears on the data
-        -- bus and can be latched into register A with ld_A='1'.
-        -- -------------------------------------------------------
         npu_result   : in std_logic_vector(31 downto 0)
     );
 end entity;

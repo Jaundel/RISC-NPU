@@ -20,13 +20,6 @@
 --   8. npu_result flows into reg A via data bus
 --   9. CPU continues to next instruction
 --
--- TODO LIST:
---   [ ] 1. Implement multiplier.vhd, accumulator.vhd, relu.vhd stubs
---   [ ] 2. Verify npu_core port names match after implementations
---   [ ] 3. Confirm op_a/op_b bit slice is correct for your test program
---   [ ] 4. Add benchmark program to system_memory.mif:
---            software loop dot product vs MAC instruction cycle count
---   [ ] 5. (Optional) Add dOutNPU output port for FPGA LED display
 -- ============================================================
 
 LIBRARY ieee;
@@ -87,7 +80,6 @@ ARCHITECTURE description OF cpu1 IS
         IM_MUX1  : IN STD_LOGIC;
         IM_MUX2  : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
         ALU_Op   : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
-        -- New port: NPU result input
         npu_result : IN STD_LOGIC_VECTOR(31 DOWNTO 0)
     );
     END COMPONENT;
@@ -154,7 +146,7 @@ ARCHITECTURE description OF cpu1 IS
            dp_clrC, dp_ldC, dp_clrZ, dp_ldZ,
            memWEN, memEN, dp_muxA, dp_muxB : STD_LOGIC;
     SIGNAL mux_data, reg, enpd, irlc, irld,
-           pinc, pclr, pcld, out0, out1, out7, out6 : STD_LOGIC;
+           pinc, pclr, pcld, out0, out1 : STD_LOGIC;
     SIGNAL outIR  : STD_LOGIC_VECTOR(31 DOWNTO 0);
     SIGNAL alu    : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL dp_mux2, dp_muxData : STD_LOGIC_VECTOR(1 DOWNTO 0);
@@ -194,7 +186,6 @@ BEGIN
         A_MUX    => dp_muxA,  B_MUX  => dp_muxB,
         IM_MUX1  => dp_mux1,  IM_MUX2 => dp_mux2,
         ALU_Op   => alu,
-        -- NPU result wired to DATA_MUX "11" slot
         npu_result => npu_result_s
     );
 
@@ -259,11 +250,11 @@ BEGIN
     -- ===========================================================
     dOutA  <= reg_a_out;
     dOutB  <= reg_b_out;
-    dOutC  <= out0;
-    dOutZ  <= out1;
-    dOutIR <= outIR;
-    wEn    <= memWEN;
-    wen_mem <= out7;
-    en_mem  <= out6;
+    dOutC   <= out0;
+    dOutZ   <= out1;
+    dOutIR  <= outIR;
+    wEn     <= memWEN;
+    wen_mem <= '0';
+    en_mem  <= '0';
 
 END description;

@@ -8,6 +8,7 @@ qrun.out/
 waves/
 transcript
 qrun.log
+compile_output.txt
 vsim.wlf
 *.wlf
 

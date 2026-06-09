@@ -337,7 +337,7 @@ BEGIN
                     A_Mux    <= '0';
                     inc_PC   <= '1';
                     ld_PC    <= '1';
-                    ld_Z     <= '1';   -- TODO: update Z flag from NPU result if needed
+                    ld_Z     <= '0';   -- Z flag not updated on MAC (ALU zero_flag is not NPU-related)
                 else
                     -- Still waiting: freeze everything
                     DATA_Mux <= "00";

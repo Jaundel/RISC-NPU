@@ -35,7 +35,7 @@ architecture Behavior of alu is
 	add0 : adder32 port map (op(2), a, b, result_add, cout_add);
 	sub0 : adder32 port map (op(2), a, not b, result_sub, cout_sub);
 	
-		process (a, b, op)
+		process (a, b, op, result_add, result_sub, cout_add, cout_sub)
 		begin
 			case (op) is
 				when "000" => -- a and b

@@ -93,3 +93,4 @@ set_global_assignment -name VHDL_FILE accumulator.vhd
 set_global_assignment -name VHDL_FILE relu.vhd
 set_global_assignment -name VHDL_FILE weights_bias.vhd
 set_global_assignment -name VHDL_FILE counter.vhd
+set_global_assignment -name SDC_FILE RISC-NPU.sdc
