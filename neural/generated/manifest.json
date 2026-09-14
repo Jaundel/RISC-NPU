@@ -1,0 +1,9 @@
+{
+  "model_sha256": "014dbd21624e10acf76cf998ac1a2d2afcd7bb7473357c10c3875f7a183a6ce4",
+  "program_sha256": "64e1d7479145077b6d0cf882be3682373278f30cfe6a4f7cd225b05d899763c4",
+  "image_size": 64,
+  "instructions": 3825,
+  "macs_per_pixel": 1184,
+  "pixel_count": 4096,
+  "status": "reference-only; RTL verification required"
+}

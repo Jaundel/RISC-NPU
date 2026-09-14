@@ -18,18 +18,17 @@ architecture Behavior of data_mem is
     type RAM is array (0 to 255) of std_logic_vector(31 downto 0);
     signal DATAMEM : RAM;
 begin
-    process(clk, en, wen)
+    -- Hold the registered read port when disabled or writing. This matches
+    -- FPGA block-RAM clock-enable behaviour; callers sample only enabled reads.
+    process(clk)
     begin
         if(clk'event and clk='0') then
-            if (en = '0') then
-                data_out <= (others => '0');
-            else
+            if en = '1' then
                 if (wen = '0') then
                     data_out <= DATAMEM(conv_integer(addr));
                 end if;
                 if (wen = '1') then
                     DATAMEM(conv_integer(addr)) <= data_in;
-                    data_out <= (others => '0');
                 end if;
             end if;
         end if;

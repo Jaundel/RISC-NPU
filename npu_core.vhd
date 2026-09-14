@@ -35,10 +35,13 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
-use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 entity npu_core is
+    generic(
+        PARALLEL_MULTIPLIER : boolean := false;
+        FUSED_WIDE_RETIRE : boolean := true
+    );
     port(
         clk        : in  std_logic;
         rst        : in  std_logic;
@@ -61,7 +64,13 @@ entity npu_core is
         -- Result output — sign-extended to 32 bits
         -- Connected to DATA_MUX "11" slot in data_path.vhd
         -- -------------------------------------------------------
-        npu_result : out std_logic_vector(31 downto 0)
+        npu_result : out std_logic_vector(31 downto 0);
+        -- 00 legacy MAC/ReLU, 01 signed bias load, 10 wide MAC,
+        -- 11 arithmetic right shift then signed-int8 or ReLU-int8 clamp.
+        command    : in std_logic_vector(1 downto 0) := "00";
+        bias       : in std_logic_vector(31 downto 0) := (others => '0');
+        quant_shift: in std_logic_vector(4 downto 0) := "00000";
+        quant_relu : in std_logic := '0'
     );
 end entity;
 
@@ -111,18 +120,27 @@ architecture Behavior of npu_core is
     signal mul_start  : std_logic;
     signal mul_done   : std_logic;
     signal mul_result : std_logic_vector(15 downto 0);
+    signal operand_a, operand_b : std_logic_vector(7 downto 0);
 
     -- Accumulator signals
     signal acc_en     : std_logic;
     signal acc_out    : std_logic_vector(15 downto 0);
-    signal sat_flag   : std_logic;
-    signal neg_flag   : std_logic;
-
     -- ReLU output
     signal relu_out   : std_logic_vector(15 downto 0);
 
     -- Result register (holds value until next MAC)
-    signal result_reg : std_logic_vector(15 downto 0);
+    signal result_reg : std_logic_vector(31 downto 0);
+    signal wide_acc : signed(31 downto 0);
+    signal active_command : std_logic_vector(1 downto 0);
+
+    function saturate32(v : signed(32 downto 0)) return signed is
+    begin
+        if v(32) /= v(31) then
+            if v(32) = '0' then return signed'(x"7FFFFFFF");
+            else return signed'(x"80000000"); end if;
+        end if;
+        return v(31 downto 0);
+    end function;
 
     -- ===========================================================
     -- NPU Internal State Machine
@@ -144,15 +162,32 @@ begin
     -- TODO: gate mul_start so it only pulses in NPU_IDLE when
     --       npu_start='1', not continuously.
     -- ===========================================================
+    serial_product : if not PARALLEL_MULTIPLIER generate
     mul0 : multiplier port map (
         clk    => clk,
         rst    => rst,
         start  => mul_start,
-        a      => op_a,
-        b      => op_b,
+        a      => operand_a,
+        b      => operand_b,
         done   => mul_done,
         result => mul_result
     );
+    end generate;
+
+    parallel_product : if PARALLEL_MULTIPLIER generate
+        process(clk, rst)
+        begin
+            if rst = '1' then
+                mul_done <= '0';
+                mul_result <= (others => '0');
+            elsif rising_edge(clk) then
+                mul_done <= mul_start;
+                if mul_start = '1' then
+                    mul_result <= std_logic_vector(signed(operand_a) * signed(operand_b));
+                end if;
+            end if;
+        end process;
+    end generate;
 
     -- ===========================================================
     -- Accumulator Instantiation
@@ -166,8 +201,8 @@ begin
         en       => acc_en,
         data_in  => mul_result,
         q        => acc_out,
-        sat_flag => sat_flag,
-        neg_flag => neg_flag
+        sat_flag => open,
+        neg_flag => open
     );
 
     -- ===========================================================
@@ -182,6 +217,7 @@ begin
     -- NPU State Machine
     -- ===========================================================
     process(clk, rst)
+        variable quantized : signed(31 downto 0);
     begin
         if rst = '1' then
             npu_state  <= NPU_IDLE;
@@ -189,6 +225,10 @@ begin
             acc_en     <= '0';
             mul_start  <= '0';
             result_reg <= (others => '0');
+            wide_acc <= (others => '0');
+            active_command <= "00";
+            operand_a <= (others => '0');
+            operand_b <= (others => '0');
 
         elsif rising_edge(clk) then
             -- Default outputs (override in each state as needed)
@@ -203,8 +243,30 @@ begin
                 -- -------------------------------------------------
                 when NPU_IDLE =>
                     if npu_start = '1' then
-                        mul_start <= '1';          -- kick off multiplier
-                        npu_state <= NPU_MUL_WAIT;
+                        -- Capture the complete arithmetic transaction at acceptance.
+                        -- The caller may change operands while the unit is busy.
+                        operand_a <= op_a;
+                        operand_b <= op_b;
+                        active_command <= command;
+                        if command = "01" then
+                            wide_acc <= signed(bias);
+                            result_reg <= bias;
+                            npu_done <= '1';
+                            npu_state <= NPU_DONE_STATE;
+                        elsif command = "11" then
+                            -- Arithmetic shift rounds negative values toward -infinity.
+                            quantized := shift_right(wide_acc, to_integer(unsigned(quant_shift)));
+                            if quantized > 127 then quantized := to_signed(127, 32);
+                            elsif quant_relu = '1' and quantized < 0 then quantized := (others => '0');
+                            elsif quantized < -128 then quantized := to_signed(-128, 32);
+                            end if;
+                            result_reg <= std_logic_vector(quantized);
+                            npu_done <= '1';
+                            npu_state <= NPU_DONE_STATE;
+                        else
+                            mul_start <= '1';
+                            npu_state <= NPU_MUL_WAIT;
+                        end if;
                     end if;
 
                 -- -------------------------------------------------
@@ -214,8 +276,20 @@ begin
                 -- -------------------------------------------------
                 when NPU_MUL_WAIT =>
                     if mul_done = '1' then
-                        acc_en    <= '1';          -- latch product into accumulator
-                        npu_state <= NPU_ACC;
+                        if active_command = "10" then
+                            wide_acc <= saturate32(resize(wide_acc, 33) + resize(signed(mul_result), 33));
+                            if FUSED_WIDE_RETIRE then
+                                result_reg <= std_logic_vector(saturate32(resize(wide_acc, 33) + resize(signed(mul_result), 33)));
+                                npu_done <= '1';
+                            end if;
+                        else
+                            acc_en <= '1';
+                        end if;
+                        if active_command = "10" and FUSED_WIDE_RETIRE then
+                            npu_state <= NPU_DONE_STATE;
+                        else
+                            npu_state <= NPU_ACC;
+                        end if;
                     end if;
 
                 -- -------------------------------------------------
@@ -232,7 +306,11 @@ begin
                 -- CAPTURE: accumulator output is now stable
                 -- -------------------------------------------------
                 when NPU_CAPTURE =>
-                    result_reg <= relu_out;        -- TODO: switch to acc_out if needed
+                    if active_command = "10" then
+                        result_reg <= std_logic_vector(wide_acc);
+                    else
+                        result_reg <= std_logic_vector(resize(signed(relu_out), 32));
+                    end if;
                     npu_done   <= '1';
                     npu_state  <= NPU_DONE_STATE;
 
@@ -256,6 +334,6 @@ begin
     -- TODO: if you want raw accumulator (no ReLU), change
     --       result_reg source in NPU_ACC state above.
     -- ===========================================================
-    npu_result <= (31 downto 16 => result_reg(15)) & result_reg;
+    npu_result <= result_reg;
 
 end Behavior;

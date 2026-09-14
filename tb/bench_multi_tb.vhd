@@ -276,7 +276,7 @@ begin
             report "N=" & integer'image(n_values(test)) &
                    "  SW_cycles=" & integer'image(sw_end) &
                    "  MAC_WAIT=" & integer'image(hw_end - hw_start) &
-                   "  Speedup=" & integer'image(sw_end / (hw_end - hw_start)) & "x";
+                   "  (different boundaries: not a speedup measurement)";
         end loop;
 
         report "======================================";

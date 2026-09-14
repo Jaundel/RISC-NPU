@@ -1,7 +1,12 @@
 # RISC-NPU Timing Constraints
-# Target: Cyclone IV E EP4CE115F29C7 on DE2-115 board (50 MHz oscillator)
+# Target board clock: 50 MHz
 
-create_clock -period 20.000 -name clk     [get_ports clk]
-create_clock -period 20.000 -name mem_clk [get_ports mem_clk]
+create_clock -period 20.000 -name CLOCK_50 [get_ports CLOCK_50]
+
+# KEY(0) is an asynchronous push-button reset in the hardware wrapper.
+set_false_path -from [get_ports {KEY[*]}]
+
+# LEDs are human-visible debug/status outputs, not synchronous off-chip buses.
+set_false_path -to [get_ports {LEDR[*] LEDG[*]}]
 
 derive_clock_uncertainty

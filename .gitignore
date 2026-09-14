@@ -11,6 +11,7 @@ qrun.log
 compile_output.txt
 vsim.wlf
 *.wlf
+scripts/parse_vcd*.py
 
 # Quartus reports, logs, and temporary outputs
 *.bak
@@ -36,3 +37,34 @@ vsim.wlf
 Thumbs.db
 *.swp
 *.tmp
+.venv/
+__pycache__/
+artifacts/raw/
+artifacts/research/
+artifacts/verification/
+artifacts/synthesis/
+artifacts/publication/
+node_modules/
+
+# Local authoring instructions and review records
+AGENTS.md
+CLAUDE.md
+.codex/
+.claude/
+.openai/
+.sites-runtime/
+.playwright-cli/
+PROJECT_CONTEXT.md
+docs/article-workflow/
+docs/REVAMP.md
+docs/RESEARCH_REVAMP.md
+docs/RESEARCH_RESULTS.md
+
+# Local previews, scratch work, and reference downloads
+article/
+output/
+tmp/
+yo.pdf
+.env
+.env.*
+!.env.example

@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
+use ieee.numeric_std.all;
 
 library std;
 use std.env.all;
@@ -146,10 +147,10 @@ begin
                 hw_done := true;
                 report "*** HW done  cycle=" & integer'image(hw_end) &
                        "  MAC_WAIT=" & integer'image(hw_end - hw_start) &
-                       "  A=" & integer'image(conv_integer(dOutA));
+                       "  A=" & integer'image(to_integer(unsigned(dOutA)));
                 assert dOutA = x"000009C4"
                     report "HW result wrong: expected 2500, got " &
-                           integer'image(conv_integer(dOutA))
+                           integer'image(to_integer(unsigned(dOutA)))
                     severity failure;
             end if;
 
@@ -168,7 +169,7 @@ begin
         report "RISC-NPU BENCHMARK  50x50=2500";
         report "SW cycles:  " & integer'image(sw_end - sw_start);
         report "MAC_WAIT:   " & integer'image(hw_end - hw_start);
-        report "Speedup:    " & integer'image((sw_end - sw_start) / (hw_end - hw_start)) & "x";
+        report "Legacy diagnostic only: SW and MAC_WAIT have different measurement boundaries; no speedup claim.";
         report "======================================";
         report "bench_tb PASSED";
         stop;

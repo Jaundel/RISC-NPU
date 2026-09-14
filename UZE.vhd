@@ -10,7 +10,7 @@ port(
 end entity;
 
 architecture Behavior of UZE is
-    signal zeros : std_logic_vector(15 downto 0) := (others => '0');
+    constant zeros : std_logic_vector(15 downto 0) := (others => '0');
 begin
     UZE_out <= UZE_in(15 downto 0) & zeros;
 end Behavior;

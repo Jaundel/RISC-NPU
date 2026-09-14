@@ -28,6 +28,11 @@ USE ieee.std_logic_arith.all;
 USE ieee.std_logic_unsigned.all;
 
 ENTITY cpu1 IS
+GENERIC (
+    ENABLE_NPU : boolean := true;
+    PARALLEL_MULTIPLIER : boolean := false;
+    FUSED_WIDE_RETIRE : boolean := true
+);
 PORT (
     clk      : IN  STD_LOGIC;
     mem_clk  : IN  STD_LOGIC;
@@ -127,6 +132,10 @@ ARCHITECTURE description OF cpu1 IS
     -- TODO: update port names below if your implementations differ
     -- ===========================================================
     COMPONENT npu_core IS
+    GENERIC (
+        PARALLEL_MULTIPLIER : boolean := false;
+        FUSED_WIDE_RETIRE : boolean := true
+    );
     PORT (
         clk        : IN  STD_LOGIC;
         rst        : IN  STD_LOGIC;
@@ -134,7 +143,11 @@ ARCHITECTURE description OF cpu1 IS
         npu_done   : OUT STD_LOGIC;
         op_a       : IN  STD_LOGIC_VECTOR(7 DOWNTO 0);
         op_b       : IN  STD_LOGIC_VECTOR(7 DOWNTO 0);
-        npu_result : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
+        npu_result : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+        command : IN STD_LOGIC_VECTOR(1 DOWNTO 0) := "00";
+        bias : IN STD_LOGIC_VECTOR(31 DOWNTO 0) := (others => '0');
+        quant_shift : IN STD_LOGIC_VECTOR(4 DOWNTO 0) := "00000";
+        quant_relu : IN STD_LOGIC := '0'
     );
     END COMPONENT;
 
@@ -159,8 +172,14 @@ ARCHITECTURE description OF cpu1 IS
     SIGNAL npu_start_s  : STD_LOGIC;
     SIGNAL npu_done_s   : STD_LOGIC;
     SIGNAL npu_result_s : STD_LOGIC_VECTOR(31 DOWNTO 0);
+    SIGNAL npu_command_s : STD_LOGIC_VECTOR(1 DOWNTO 0);
+    SIGNAL npu_bias_s : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
 BEGIN
+    with outIR(31 DOWNTO 28) select npu_command_s <=
+        "01" when "1100", "10" when "1101", "11" when "1110", "00" when others;
+    -- NINIT reads signed register A[15:0]; the accumulator remains signed 32-bit.
+    npu_bias_s <= (31 DOWNTO 16 => reg_a_out(15)) & reg_a_out(15 DOWNTO 0);
 
     -- ===========================================================
     -- Data Path Instantiation
@@ -234,7 +253,10 @@ BEGIN
     -- TODO: if you want wider operands (e.g. 16-bit), adjust the
     --       bit slices here and update npu_core/multiplier ports.
     -- ===========================================================
+    with_npu : if ENABLE_NPU generate
     npu : npu_core
+    GENERIC MAP(PARALLEL_MULTIPLIER => PARALLEL_MULTIPLIER,
+                FUSED_WIDE_RETIRE => FUSED_WIDE_RETIRE)
     PORT MAP(
         clk        => clk,
         rst        => rst,
@@ -242,8 +264,18 @@ BEGIN
         npu_done   => npu_done_s,
         op_a       => reg_a_out(7 DOWNTO 0),
         op_b       => reg_b_out(7 DOWNTO 0),
-        npu_result => npu_result_s
+        npu_result => npu_result_s,
+        command => npu_command_s,
+        bias => npu_bias_s,
+        quant_shift => outIR(4 DOWNTO 0),
+        quant_relu => outIR(8)
     );
+    end generate;
+    without_npu : if not ENABLE_NPU generate
+        -- Software-only resource baseline. Accelerator opcodes are unsupported.
+        npu_result_s <= (others => '0');
+        npu_done_s <= '0';
+    end generate;
 
     -- ===========================================================
     -- Output Assignments

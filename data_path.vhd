@@ -153,7 +153,6 @@ architecture Behavior of Data_Path is
     signal ALU_out          : std_logic_vector(31 downto 0);
     signal zero_flag        : std_logic;
     signal carry_flag       : std_logic;
-    signal temp             : std_logic_vector(30 downto 0) := (others => '0');
     signal out_pc_sig       : std_logic_vector(31 downto 0);
 
 begin
@@ -180,7 +179,7 @@ begin
 
     LZE_IM_MUX2:  LZE     port map(IR_OUT, LZE_IM_MUX2_out);
     IM_MUX2a:   mux4to1   port map(IM_MUX2,
-                                    reg_B_out, LZE_IM_MUX2_out, (temp & '1'), (others => '0'),
+                                    reg_B_out, LZE_IM_MUX2_out, x"00000001", (others => '0'),
                                     IM_MUX2_out);
 
     ALU0: ALU port map(IM_MUX1_out, IM_MUX2_out, ALU_OP, ALU_out, zero_flag, carry_flag);
@@ -206,8 +205,23 @@ begin
     DATA_BUS <= data_bus_s;
     OUT_A    <= reg_A_out;
     OUT_B    <= reg_B_out;
-    OUT_C    <= carry_flag;
-    OUT_Z    <= zero_flag;
+    -- Architectural flags retain the last flag-writing instruction's result.
+    process(Clk, Clr_C)
+    begin
+        if Clr_C = '1' then
+            OUT_C <= '0';
+        elsif rising_edge(Clk) then
+            if Ld_C = '1' then OUT_C <= carry_flag; end if;
+        end if;
+    end process;
+    process(Clk, Clr_Z)
+    begin
+        if Clr_Z = '1' then
+            OUT_Z <= '0';
+        elsif rising_edge(Clk) then
+            if Ld_Z = '1' then OUT_Z <= zero_flag; end if;
+        end if;
+    end process;
     OUT_IR   <= IR_OUT;
     ADDR_OUT <= out_pc_sig;
     OUT_PC   <= out_pc_sig;
